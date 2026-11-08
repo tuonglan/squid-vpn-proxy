@@ -1,0 +1,51 @@
+# Shared runtime configuration; use scripts/compose.sh with dev or prd.
+services:
+  proxy:
+    image: ${IMAGE_REPOSITORY:-tuonglan/squid-vpn-proxy}:${VERSION:?Use scripts/compose.sh to load VERSION}
+    restart: unless-stopped
+    cap_drop: [ALL]
+    cap_add: [NET_ADMIN, SETUID, SETGID, CHOWN, DAC_OVERRIDE, KILL]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /run:rw,nosuid,nodev,noexec,size=16m
+      - /tmp:rw,nosuid,nodev,noexec,size=16m
+    sysctls:
+      net.ipv6.conf.all.disable_ipv6: "1"
+      net.ipv6.conf.default.disable_ipv6: "1"
+      net.ipv4.conf.all.rp_filter: "0"
+      net.ipv4.conf.default.rp_filter: "0"
+      net.ipv4.conf.all.src_valid_mark: "1"
+    networks:
+      default:
+        interface_name: eth0
+        driver_opts:
+          com.docker.network.endpoint.sysctls: net.ipv4.conf.IFNAME.rp_filter=0
+    ports:
+      - "${PROXY_BIND_ADDRESS:-127.0.0.1}:${PROXY_PORT:-3128}:3128/tcp"
+    volumes:
+      - type: bind
+        source: ${WG_CONFIG_PATH:-./data/wg0.conf}
+        target: /etc/wireguard/client.conf
+        read_only: true
+        bind:
+          create_host_path: false
+    environment:
+      PROXY_USERNAME: ${PROXY_USERNAME:?Set PROXY_USERNAME in .env}
+      PROXY_PASSWORD: ${PROXY_PASSWORD:?Set PROXY_PASSWORD in .env}
+      PROXY_ALLOWED_CIDRS: ${PROXY_ALLOWED_CIDRS:-127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
+      PROXY_DNS_SERVERS: ${PROXY_DNS_SERVERS:-1.1.1.1,8.8.8.8}
+      PROXY_ACCESS_LOG: ${PROXY_ACCESS_LOG:-false}
+      WG_BOOTSTRAP_DNS_SERVERS: ${WG_BOOTSTRAP_DNS_SERVERS:-1.1.1.1,8.8.8.8}
+    stop_grace_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  default:
+    driver: bridge
+    enable_ipv6: false

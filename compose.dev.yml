@@ -1,0 +1,7 @@
+services:
+  proxy:
+    build:
+      context: .
+      args:
+        VERSION: ${VERSION:?Use scripts/compose.sh}
+    pull_policy: build

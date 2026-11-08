@@ -1,0 +1,3 @@
+services:
+  proxy:
+    pull_policy: always
